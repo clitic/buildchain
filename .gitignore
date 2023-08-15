@@ -2,8 +2,11 @@
 build
 buildchain.egg-info
 *.whl
-buildchain/__pycache__
+__pycache__
 # generated directories
+cygwin
 patches
 toolchain
+# generated files
+.ninja_log
 build.ninja

@@ -5,7 +5,6 @@ def parse() -> argparse.Namespace:
         description="Configure binutils and gcc based toolchain.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         prog="buildchain",
-        version="0.1.0",
     )
     group = parser.add_argument_group("toolchain options")
     group.add_argument(
@@ -78,7 +77,7 @@ def parse() -> argparse.Namespace:
     )
     group.add_argument(
         "--libc",
-        choices=["auto", "cygwin-newlib", "glibc", "msvcrt", "musl", "ucrt"],
+        choices=["auto", "glibc", "msvcrt", "musl", "newlib-cygwin", "ucrt"],
         default="auto",
         help="Libc implemention to use for target toolchain.",
     )

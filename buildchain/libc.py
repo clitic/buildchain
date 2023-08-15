@@ -8,11 +8,11 @@ class LibC(Enum):
     NEWLIB_CYGWIN = 4
     UCRT = 5
 
-    def is_cygwin_newlib(self) -> bool:
-        return self == LibC.NEWLIB_CYGWIN
-
     def is_mingw_w64(self) -> bool:
         return self == LibC.MSVCRT or self == LibC.UCRT
+
+    def is_newlib_cygwin(self) -> bool:
+        return self == LibC.NEWLIB_CYGWIN
 
     def name(self) -> str:
         match self:

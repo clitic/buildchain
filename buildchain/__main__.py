@@ -7,8 +7,8 @@ from typing import Optional, List
 from . import cli
 from .libc import LibC
 from .ninja_syntax import Writer
+from .packages import Cygwin
 from .patches import Patch
-
 
 class Args:
     no_patches = (bool,)
@@ -186,15 +186,15 @@ class Args:
         print(f"      mpfr {self.mpfr_version}")
 
         match self.libc:
-            case LibC.CYGWIN_NEWLIB:
-                print(f"    cygwin {self.cygwin_version}")
-                print(f" mingw-w64 {self.mingw_w64_version}\n")
             case LibC.GLIBC:
                 print(f"     glibc {self.glibc_version}\n")
             case LibC.MSVCRT | LibC.UCRT:
                 print(f" mingw-w64 {self.mingw_w64_version}\n")
             case LibC.MUSL:
                 print(f"      musl {self.musl_version}\n")
+            case LibC.NEWLIB_CYGWIN:
+                print(f"    cygwin {self.cygwin_version}")
+                print(f" mingw-w64 {self.mingw_w64_version}\n")
 
     @staticmethod
     def _exists(cmd: str, msg: str) -> bool:
@@ -271,14 +271,14 @@ class Args:
 
     def libc_version(self) -> str:
         match self.libc:
-            case LibC.CYGWIN_NEWLIB:
-                return self.cygwin_version
             case LibC.GLIBC:
                 return self.glibc_version
             case LibC.MSVCRT | LibC.UCRT:
                 return self.mingw_w64_version
             case LibC.MUSL:
                 return self.musl_version
+            case LibC.NEWLIB_CYGWIN:
+                return self.cygwin_version
 
     def write_variables(self, w: Writer) -> None:
         w.comment("this file is generated from configure.py")
@@ -810,7 +810,7 @@ class Args:
             "--host=$target",
         ]
 
-        if self.libc.is_cygwin_newlib():
+        if self.libc.is_newlib_cygwin():
             flags.extend([
                 "--enable-w32api",
                 "--with-default-msvcrt=ucrt",
@@ -884,7 +884,7 @@ class Args:
             "--with-sysroot=$build_sysroot_dir",
         ]
 
-        if self.libc.is_cygwin_newlib():
+        if self.libc.is_newlib_cygwin():
             flags.extend([
                 "--enable-w32api",
                 "--with-default-msvcrt=ucrt",
@@ -1447,7 +1447,7 @@ def main() -> None:
     match args.libc:
         case "auto":
             if "cygwin" in args.target:
-                args.libc = LibC.CYGWIN_NEWLIB
+                args.libc = LibC.NEWLIB_CYGWIN
             elif "gnu" in args.target:
                 args.libc = LibC.GLIBC
             elif "mingw" in args.target:
@@ -1460,20 +1460,20 @@ def main() -> None:
                     "Use --libc flag to explicitly specify it."
                 )
                 sys.exit(1)
-        case "cygwin-newlib":
-            args.libc = LibC.CYGWIN_NEWLIB
         case "glibc":
             args.libc = LibC.GLIBC
         case "msvcrt":
             args.libc = LibC.MSVCRT
         case "musl":
             args.libc = LibC.MUSL
+        case "newlib-cygwin":
+            args.libc = LibC.NEWLIB_CYGWIN
         case "ucrt":
             args.libc = LibC.UCRT
 
     match args.linux_headers:
         case "auto" | "enabled":
-            if args.libc.is_cygwin_newlib() or args.libc.is_mingw_w64():
+            if args.libc.is_mingw_w64() or args.libc.is_newlib_cygwin():
                 args.linux_headers = False
             else:
                 args.linux_headers = True
@@ -1485,12 +1485,10 @@ def main() -> None:
             args.linux_headers = False
 
     if "cygwin" in args.target:
-        tarball = f"prepare/cygwin-{args.cygwin_version}-{args.target}.tar.xz"
+        tarball = f"cygwin/cygwin-{args.cygwin_version}-{args.target}.tar.xz"
 
         if not Path(tarball).exists():
-            if not Path("prepare").exists():
-                os.mkdir("prepare")
-
+            Cygwin(args.target, args.cygwin_version).ninja()
             sys.exit(1)
 
     # print("using")
