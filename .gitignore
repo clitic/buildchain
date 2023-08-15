@@ -1,0 +1,9 @@
+# python/pip
+build
+buildchain.egg-info
+*.whl
+buildchain/__pycache__
+# generated directories
+patches
+toolchain
+build.ninja
