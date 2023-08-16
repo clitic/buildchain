@@ -9,7 +9,7 @@ def parse() -> argparse.Namespace:
     parser.add_argument(
         "--version",
         action="version",
-        version="buildchain 0.1.0",
+        version="%(prog)s 0.1.0",
     )
     group = parser.add_argument_group("toolchain options")
     group.add_argument(

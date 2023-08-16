@@ -1007,16 +1007,22 @@ class Args:
         )
         w.newline()
 
+        cmd = [
+            "cd $mingw_w64_crt_build_dir",
+            f'$env_path {cc} $make_cmd install DESTDIR=$build_sysroot_dir/usr',
+        ]
+
+        if self.libc.is_newlib_cygwin():
+            cmd.extend([
+                "cp -r $build_sysroot_dir/usr/lib/w32api/* $build_sysroot_dir/usr/lib",
+                "rm -rf $build_sysroot_dir/usr/lib/w32api",
+            ])
+
+        cmd.append("touch ../../$out")
+
         w.rule(
             "install-mingw-w64-crt-sysroot",
-            "cd $mingw_w64_crt_build_dir && "
-            f'$env_path {cc} $make_cmd install DESTDIR=$build_sysroot_dir/usr && '
-            (
-                "cp -r $build_sysroot_dir/usr/lib/w32api/* $build_sysroot_dir/usr/lib && "
-                "rm -rf $build_sysroot_dir/usr/lib/w32api && "
-                if self.libc.is_newlib_cygwin() else ""
-            ) +
-            "touch ../../$out",
+            " && ".join(cmd),
             description="Installing mingw-w64 $mingw_w64_version (crt) at $build_sysroot_dir/usr",
         )
         w.newline()
@@ -1028,16 +1034,22 @@ class Args:
         )
         w.newline()
 
+        cmd = [
+            "cd $mingw_w64_crt_build_dir",
+            f'$env_path {cc} $make_cmd install DESTDIR=$install_dir/$target',
+        ]
+
+        if self.libc.is_newlib_cygwin():
+            cmd.extend([
+                "cp -r $install_dir/$target/lib/w32api/* $install_dir/$target/lib",
+                "rm -rf $install_dir/$target/lib/w32api",
+            ])
+
+        cmd.append("touch ../../$out")
+
         w.rule(
             "install-mingw-w64-crt",
-            "cd $mingw_w64_crt_build_dir && "
-            f'$env_path {cc} $make_cmd install DESTDIR=$install_dir/$target && '
-            (
-                "cp -r $install_dir/$target/lib/w32api/* $install_dir/$target/lib && "
-                "rm -rf $install_dir/$target/lib/w32api && "
-                if self.libc.is_newlib_cygwin() else ""
-            ) +
-            "touch ../../$out",
+            " && ".join(cmd),
             description="Installing mingw-w64 $mingw_w64_version",
         )
         w.newline()
@@ -1061,8 +1073,6 @@ class Args:
             "--prefix=",
             "--host=$target",
             "--with-sysroot=$build_sysroot_dir",
-            # "--disable-shared",
-            # "--enable-static",
         ]
 
         w.rule(
