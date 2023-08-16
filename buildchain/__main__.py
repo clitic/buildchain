@@ -1514,40 +1514,40 @@ class Args:
             self.write_step_gcc_all_gcc(w, step_no)
             step_no += 1
 
-        match self.libc:
-            case LibC.MSVCRT | LibC.UCRT:
-                self.write_step_mingw_w64_headers(w, step_no)
-                step_no += 1
-                self.write_step_mingw_w64_crt(w, step_no)
-                step_no += 1
-                self.write_step_mingw_w64_threads(w, step_no)
-                step_no += 1
-            case LibC.NEWLIB_CYGWIN:
-                self.write_step_mingw_w64_headers(w, step_no)
-                step_no += 1
-                self.write_step_mingw_w64_crt(w, step_no)
-                step_no += 1
-                self.write_step_cygwin_devel_install(w, step_no)
-                step_no += 1
-            case _:
-                if self.linux_headers:
-                    self.write_step_linux_headers(w, step_no)
+            match self.libc:
+                case LibC.MSVCRT | LibC.UCRT:
+                    self.write_step_mingw_w64_headers(w, step_no)
+                    step_no += 1
+                    self.write_step_mingw_w64_crt(w, step_no)
+                    step_no += 1
+                    self.write_step_mingw_w64_threads(w, step_no)
+                    step_no += 1
+                case LibC.NEWLIB_CYGWIN:
+                    self.write_step_mingw_w64_headers(w, step_no)
+                    step_no += 1
+                    self.write_step_mingw_w64_crt(w, step_no)
+                    step_no += 1
+                    self.write_step_cygwin_devel_install(w, step_no)
+                    step_no += 1
+                case _:
+                    if self.linux_headers:
+                        self.write_step_linux_headers(w, step_no)
+                        step_no += 1
+
+                    self.write_step_configure_libc(w, step_no)
+                    step_no += 1
+                    self.write_step_libc_headers(w, step_no)
+                    step_no += 1
+                    self.write_step_gcc_all_target_libgcc(w, step_no)
+                    step_no += 1
+                    self.write_step_build_libc(w, step_no)
                     step_no += 1
 
-                self.write_step_configure_libc(w, step_no)
-                step_no += 1
-                self.write_step_libc_headers(w, step_no)
-                step_no += 1
-                self.write_step_gcc_all_target_libgcc(w, step_no)
-                step_no += 1
-                self.write_step_build_libc(w, step_no)
-                step_no += 1
-
-        self.write_step_build_gcc(w, step_no)
-        step_no += 1
-        self.write_clean_targets(w)
-        self.write_install_targets(w)
-        self.write_default_targets(w)
+            self.write_step_build_gcc(w, step_no)
+            step_no += 1
+            self.write_clean_targets(w)
+            self.write_install_targets(w)
+            self.write_default_targets(w)
 
 
 def main() -> None:
