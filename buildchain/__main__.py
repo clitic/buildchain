@@ -1514,16 +1514,22 @@ class Args:
             self.write_step_gcc_all_gcc(w, step_no)
             step_no += 1
 
-            if self.libc.requires_mingw_w64():
+        match self.libc:
+            case LibC.MSVCRT | LibC.UCRT:
                 self.write_step_mingw_w64_headers(w, step_no)
                 step_no += 1
                 self.write_step_mingw_w64_crt(w, step_no)
                 step_no += 1
-
-                if self.libc.is_mingw_w64():
-                    self.write_step_mingw_w64_threads(w, step_no)
-                    step_no += 1
-            else:
+                self.write_step_mingw_w64_threads(w, step_no)
+                step_no += 1
+            case LibC.NEWLIB_CYGWIN:
+                self.write_step_mingw_w64_headers(w, step_no)
+                step_no += 1
+                self.write_step_mingw_w64_crt(w, step_no)
+                step_no += 1
+                self.write_step_cygwin_devel_install(w, step_no)
+                step_no += 1
+            case _:
                 if self.linux_headers:
                     self.write_step_linux_headers(w, step_no)
                     step_no += 1
