@@ -1543,11 +1543,11 @@ class Args:
                 self.write_step_build_libc(w, step_no)
                 step_no += 1
 
-            self.write_step_build_gcc(w, step_no)
-            step_no += 1
-            self.write_clean_targets(w)
-            self.write_install_targets(w)
-            self.write_default_targets(w)
+        self.write_step_build_gcc(w, step_no)
+        step_no += 1
+        self.write_clean_targets(w)
+        self.write_install_targets(w)
+        self.write_default_targets(w)
 
 
 def main() -> None:
