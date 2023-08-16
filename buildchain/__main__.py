@@ -399,9 +399,6 @@ class Args:
 
         if self.libc.requires_mingw_w64():
             download_targets.append("mingw_w64")
-
-            if self.libc.is_newlib_cygwin():
-                download_targets.append("cygwin_devel")
         else:
             download_targets.append(self.libc.name())
 
@@ -419,6 +416,14 @@ class Args:
             )
 
         w.newline()
+
+        if self.libc.is_newlib_cygwin():
+            download_targets.append("cygwin_devel")
+            w.variable(
+                "cygwin_devel_tarball",
+                "$download_dir/cygwin-devel-$cygwin_version.tar.xz",
+            )
+            w.newline()
 
         for name in download_targets:
             match name:
@@ -528,7 +533,7 @@ class Args:
                 "download-tarball",
                 pool="console",
                 variables={
-                    "url": "$cygwin_mirror_site/release/cygwin/cygwin-devel/cygwin-${cygwin_version}-1.tar.xz"},
+                    "url": "$cygwin_mirror_site/release/cygwin/cygwin-devel/cygwin-devel-${cygwin_version}-1.tar.xz"},
             )
             w.newline()
 
@@ -948,7 +953,6 @@ class Args:
             flags.extend([
                 "--enable-w32api",
                 "--with-default-msvcrt=ucrt",
-                "--libdir=/lib",
             ])
         elif self.libc.is_mingw_w64():
             flags.append(f"--with-default-msvcrt={self.libc.name()}")
@@ -1006,7 +1010,12 @@ class Args:
         w.rule(
             "install-mingw-w64-crt-sysroot",
             "cd $mingw_w64_crt_build_dir && "
-            f'$env_path {cc} $make_cmd install DESTDIR=$build_sysroot_dir/usr MAKE="$make_cmd" && '
+            f'$env_path {cc} $make_cmd install DESTDIR=$build_sysroot_dir/usr && '
+            (
+                "cp -r $build_sysroot_dir/usr/lib/w32api/* $build_sysroot_dir/usr/lib && "
+                "rm -rf $build_sysroot_dir/usr/lib/w32api && "
+                if self.libc.is_newlib_cygwin() else ""
+            ) +
             "touch ../../$out",
             description="Installing mingw-w64 $mingw_w64_version (crt) at $build_sysroot_dir/usr",
         )
@@ -1022,7 +1031,12 @@ class Args:
         w.rule(
             "install-mingw-w64-crt",
             "cd $mingw_w64_crt_build_dir && "
-            f'$env_path {cc} $make_cmd install DESTDIR=$install_dir/$target MAKE="$make_cmd" && '
+            f'$env_path {cc} $make_cmd install DESTDIR=$install_dir/$target && '
+            (
+                "cp -r $install_dir/$target/lib/w32api/* $install_dir/$target/lib && "
+                "rm -rf $install_dir/$target/lib/w32api && "
+                if self.libc.is_newlib_cygwin() else ""
+            ) +
             "touch ../../$out",
             description="Installing mingw-w64 $mingw_w64_version",
         )
