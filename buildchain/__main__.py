@@ -524,7 +524,7 @@ class Args:
 
         if self.libc.is_newlib_cygwin():
             w.build(
-                f"${tarball_name}_tarball",
+                "$cygwin_devel_tarball",
                 "download-tarball",
                 pool="console",
                 variables={
