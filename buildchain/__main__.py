@@ -10,6 +10,16 @@ from .ninja_syntax import Writer
 from .packages import Cygwin
 from .patches import Patch
 
+
+CYGWIN_x86_MIRROR_SITE = "https://mirrors.kernel.org/sourceware/cygwin-archive/20221123"
+CYGWIN_x86_64_MIRROR_SITE = "https://mirrors.kernel.org/sourceware/cygwin"
+GNU_SITE = "https://ftpmirror.gnu.org"
+ISL_SITE = "https://libisl.sourceforge.io"
+LINUX_SITE = "https://cdn.kernel.org/pub/linux/kernel/v6.x"
+MINGW_W64_SITE = "https://sourceforge.net/projects/mingw-w64/files/mingw-w64/mingw-w64-release"
+MUSL_SITE = "https://www.musl-libc.org"
+
+
 class Args:
     no_patches = (bool,)
     prefix = (str,)
@@ -311,31 +321,42 @@ class Args:
         w.variable("mpfr_version", self.mpfr_version)
 
         match self.libc:
-            case LibC.MSVCRT | LibC.NEWLIB_CYGWIN | LibC.UCRT:
+            case LibC.MSVCRT | LibC.UCRT:
+                w.variable("mingw_w64_version", self.mingw_w64_version)
+            case LibC.NEWLIB_CYGWIN:
+                w.variable("cygwin_version", self.cygwin_version)
                 w.variable("mingw_w64_version", self.mingw_w64_version)
             case _:
                 w.variable(f"{self.libc.name()}_version", self.libc_version())
 
         w.newline()
 
-        w.variable("gnu_site", "https://ftpmirror.gnu.org")
+        w.variable("gnu_site", GNU_SITE)
 
         if self.gcc_with_isl:
-            w.variable("isl_site", "https://libisl.sourceforge.io")
+            w.variable("isl_site", ISL_SITE)
 
-        w.variable(
-            "linux_site", "https://cdn.kernel.org/pub/linux/kernel/v6.x"
-        )
+        w.variable("linux_site", LINUX_SITE)
 
         match self.libc:
-            case LibC.MSVCRT | LibC.NEWLIB_CYGWIN | LibC.UCRT:
-                w.variable("mingw_w64_site",
-                           "https://sourceforge.net/projects/mingw-w64/files/mingw-w64/mingw-w64-release")
+            case LibC.MSVCRT | LibC.UCRT:
+                w.variable("mingw_w64_site", MINGW_W64_SITE)
             case LibC.MUSL:
-                w.variable("musl_site", "https://www.musl-libc.org")
+                w.variable("musl_site", MUSL_SITE)
+            case LibC.NEWLIB_CYGWIN:
+                arch = self.target.split("-")[0]
+
+                if arch in ["x86_64", "amd64", "x64"]:
+                    w.variable("cygwin_mirror_site",
+                               CYGWIN_x86_64_MIRROR_SITE + "/x86_64")
+                elif (arch.startswith("i") and arch.endswith("86")) or arch == "x86":
+                    w.variable("cygwin_mirror_site",
+                               CYGWIN_x86_MIRROR_SITE + "/x86")
+
+                w.variable("mingw_w64_site", MINGW_W64_SITE)
 
         w.newline()
-        w.variable("download_cmd", "curl -L -o")
+        w.variable("download_cmd", "curl -Lo")
         w.variable(
             "make_cmd",
             f"{self._make} -j {os.cpu_count()} MULTILIB_OSDIRNAMES= ac_cv_prog_lex_root=lex.yy",
@@ -378,6 +399,9 @@ class Args:
 
         if self.libc.requires_mingw_w64():
             download_targets.append("mingw_w64")
+
+            if self.libc.is_newlib_cygwin():
+                download_targets.append("cygwin_devel")
         else:
             download_targets.append(self.libc.name())
 
@@ -397,25 +421,26 @@ class Args:
         w.newline()
 
         for name in download_targets:
-            if name == "mingw_w64":
-                w.variable("mingw_w64_dir",
-                           "$build_dir/mingw-w64-v$mingw_w64_version")
-            else:
-                w.variable(f"{name}_dir", f"$build_dir/{name}-${name}_version")
+            match name:
+                case "cygwin_devel":
+                    w.variable("cygwin_devel_dir",
+                               "$build_dir/cygwin-devel-$cygwin_version")
+                case "mingw_w64":
+                    w.variable("mingw_w64_dir",
+                               "$build_dir/mingw-w64-v$mingw_w64_version")
+                case _:
+                    w.variable(f"{name}_dir",
+                               f"$build_dir/{name}-${name}_version")
 
         w.newline()
+
         w.rule(
             "download-tarball",
             "$download_cmd $out $url",
             description="Downloading $url",
         )
         w.newline()
-        w.rule(
-            "extract-tar",
-            "rm -rf $extracted_dir && tar -C $build_dir -x -$compression -f $in && cd $extracted_dir && $patch_command && touch ../../$out",
-            description="Extracting $in",
-        )
-        w.newline()
+
         w.build(
             "$binutils_tarball",
             "download-tarball",
@@ -497,6 +522,23 @@ class Args:
         )
         w.newline()
 
+        if self.libc.is_newlib_cygwin():
+            w.build(
+                f"${tarball_name}_tarball",
+                "download-tarball",
+                pool="console",
+                variables={
+                    "url": "$cygwin_mirror_site/release/cygwin/cygwin-devel/cygwin-${cygwin_version}-1.tar.xz"},
+            )
+            w.newline()
+
+        w.rule(
+            "extract-tar",
+            "rm -rf $extracted_dir && tar -x${compression}f $in -C $build_dir && cd $extracted_dir && $patch_command && touch ../../$out",
+            description="Extracting $in",
+        )
+        w.newline()
+
         name_version_tuples = [
             ("binutils", self.binutils_version),
             ("gcc", self.gcc_version),
@@ -547,6 +589,24 @@ class Args:
                     "extracted_dir": f"${name}_dir",
                     "patch_command": patch_command,
                 },
+            )
+            w.newline()
+
+        if self.libc.is_newlib_cygwin():
+            w.rule(
+                "extract-cygwin-devel",
+                "rm -rf $cygwin_devel_dir && "
+                "mkdir -p $cygwin_devel_dir && "
+                "tar -xJf $in -C $cygwin_devel_dir && "
+                "touch $out",
+                description="Extracting $in",
+            )
+            w.newline()
+            w.build(
+                "$build_targets_dir/extract-cygwin-devel",
+                "extract-cygwin-devel",
+                inputs=["$cygwin_devel_tarball"],
+                pool="console",
             )
             w.newline()
 
@@ -888,6 +948,7 @@ class Args:
             flags.extend([
                 "--enable-w32api",
                 "--with-default-msvcrt=ucrt",
+                "--libdir=/lib",
             ])
         elif self.libc.is_mingw_w64():
             flags.append(f"--with-default-msvcrt={self.libc.name()}")
@@ -1052,6 +1113,39 @@ class Args:
             "$build_targets_dir/install-mingw-w64-threads",
             "install-mingw-w64-threads",
             implicit=["$build_targets_dir/build-mingw-w64-threads"],
+            pool="console",
+        )
+        w.newline()
+
+    def write_step_cygwin_devel_install(self, w: Writer, step_no: int) -> None:
+        w.comment(f"step {step_no} - install cygwin-devel")
+
+        w.rule(
+            "install-cygwin-devel-sysroot",
+            "cp -r $cygwin_devel_dir/usr/* $build_sysroot_dir/usr && "
+            "touch $out",
+            description="Installing cygwin-devel $cygwin_version at $build_sysroot_dir/usr",
+        )
+        w.newline()
+        w.build(
+            "$build_targets_dir/install-cygwin-devel-sysroot",
+            "install-cygwin-devel-sysroot",
+            implicit=["$build_targets_dir/extract-cygwin-devel"],
+            pool="console",
+        )
+        w.newline()
+
+        w.rule(
+            "install-cygwin-devel",
+            "cp -r $cygwin_devel_dir/usr/* $install_dir/$target && "
+            "touch $out",
+            description="Installing cygwin-devel $cygwin_version",
+        )
+        w.newline()
+        w.build(
+            "$build_targets_dir/install-cygwin-devel",
+            "install-cygwin-devel",
+            implicit=["$build_targets_dir/extract-cygwin-devel"],
             pool="console",
         )
         w.newline()
@@ -1269,15 +1363,20 @@ class Args:
 
         deps = []
 
-        if self.libc.requires_mingw_w64():
-            deps.append("$build_targets_dir/install-mingw-w64-crt-sysroot")
-
-            if self.libc.is_mingw_w64():
+        match self.libc:
+            case LibC.MSVCRT | LibC.UCRT:
+                deps.extend([
+                    "$build_targets_dir/install-mingw-w64-crt-sysroot",
+                    "$build_targets_dir/install-mingw-w64-threads-sysroot",
+                ])
+            case LibC.NEWLIB_CYGWIN:
+                deps.extend([
+                    "$build_targets_dir/install-cygwin-devel-sysroot",
+                    "$build_targets_dir/install-mingw-w64-crt-sysroot",
+                ])
+            case _:
                 deps.append(
-                    "$build_targets_dir/install-mingw-w64-threads-sysroot")
-        else:
-            deps.append(
-                f"$build_targets_dir/install-{self.libc.name()}-sysroot")
+                    f"$build_targets_dir/install-{self.libc.name()}-sysroot")
 
         w.rule(
             "build-gcc",
@@ -1357,22 +1456,26 @@ class Args:
             "$build_targets_dir/install-gcc",
         ]
 
-        if self.libc.requires_mingw_w64():
-            install_targets.extend([
-                "$build_targets_dir/install-mingw-w64-headers",
-                "$build_targets_dir/install-mingw-w64-crt",
-            ])
+        match self.libc:
+            case LibC.MSVCRT | LibC.UCRT:
+                install_targets.extend([
+                    "$build_targets_dir/install-mingw-w64-crt",
+                    "$build_targets_dir/install-mingw-w64-headers",
+                    "$build_targets_dir/install-mingw-w64-threads",
+                ])
+            case LibC.NEWLIB_CYGWIN:
+                install_targets.extend([
+                    "$build_targets_dir/install-cygwin-devel",
+                    "$build_targets_dir/install-mingw-w64-crt",
+                    "$build_targets_dir/install-mingw-w64-headers",
+                ])
+            case _:
+                if self.linux_headers:
+                    install_targets.append(
+                        "$build_targets_dir/install-linux-headers")
 
-            if self.libc.is_mingw_w64():
                 install_targets.append(
-                    "$build_targets_dir/install-mingw-w64-threads")
-        else:
-            if self.linux_headers:
-                install_targets.append(
-                    "$build_targets_dir/install-linux-headers")
-
-            install_targets.append(
-                f"$build_targets_dir/install-{self.libc.name()}")
+                    f"$build_targets_dir/install-{self.libc.name()}")
 
         w.build(
             "install",
@@ -1443,7 +1546,7 @@ class Args:
 
 def main() -> None:
     args = cli.parse()
-    
+
     match args.libc:
         case "auto":
             if "cygwin" in args.target:
@@ -1484,12 +1587,12 @@ def main() -> None:
 
             args.linux_headers = False
 
-    if "cygwin" in args.target:
-        tarball = f"cygwin/cygwin-{args.cygwin_version}-{args.target}.tar.xz"
+    # if "cygwin" in args.target:
+    #     tarball = f"cygwin/cygwin-{args.cygwin_version}-{args.target}.tar.xz"
 
-        if not Path(tarball).exists():
-            Cygwin(args.target, args.cygwin_version).ninja()
-            sys.exit(1)
+    #     if not Path(tarball).exists():
+    #         Cygwin(args.target, args.cygwin_version).ninja()
+    #         sys.exit(1)
 
     # print("using")
     args = Args(args)
