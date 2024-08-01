@@ -107,33 +107,33 @@ def parse() -> argparse.Namespace:
     group = parser.add_argument_group("dependencies")
     group.add_argument(
         "--binutils-version",
-        default="2.40",  # https://ftp.gnu.org/gnu/binutils
+        default="2.42",  # https://ftp.gnu.org/gnu/binutils
         help="Binutils version to build.",
     )
     group.add_argument(
         "--cygwin-version",
-        default="3.4.7",  # https://cygwin.com
+        default="3.5.3",  # https://cygwin.com
         help="Cygwin version to build.",
     )
     group.add_argument(
         "--gcc-version",
-        default="13.2.0",  # https://ftp.gnu.org/gnu/gcc
+        default="14.2.0",  # https://ftp.gnu.org/gnu/gcc
         help="Gcc version to build.",
     )
     group.add_argument(
         "--glibc-version",
-        default="2.38",  # https://ftp.gnu.org/gnu/glibc
+        default="2.40",  # https://ftp.gnu.org/gnu/glibc
         help="Glibc version to build.",
     )
     group.add_argument(
         "--gmp-version",
-        default="6.2.1",  # https://ftp.gnu.org/gnu/gmp
+        default="6.3.0",  # https://ftp.gnu.org/gnu/gmp
         help="Gmp version to build.",
     )
     group.add_argument(
         "--mingw-w64-version",
         # https://sourceforge.net/projects/mingw-w64/files/mingw-w64/mingw-w64-release
-        default="11.0.1",
+        default="12.0.0",
         help="Mingw-w64 version to build.",
     )
     group.add_argument(
@@ -143,7 +143,7 @@ def parse() -> argparse.Namespace:
     )
     group.add_argument(
         "--mpfr-version",
-        default="4.2.0",  # https://ftp.gnu.org/gnu/mpfr
+        default="4.2.1",  # https://ftp.gnu.org/gnu/mpfr
         help="Mpfr version to build.",
     )
     group.add_argument(
@@ -153,12 +153,12 @@ def parse() -> argparse.Namespace:
     )
     group.add_argument(
         "--linux-version",
-        default="6.1.40",  # https://www.kernel.org
+        default="6.6.43",  # https://www.kernel.org
         help="Linux version to build.",
     )
     group.add_argument(
         "--musl-version",
-        default="1.2.4",  # https://musl.libc.org
+        default="1.2.5",  # https://musl.libc.org
         help="Musl version to build.",
     )
     return parser.parse_args()
